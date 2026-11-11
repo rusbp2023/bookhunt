@@ -60,10 +60,15 @@ fun runCheck(c: Context): List<Hit> {
         try {
             val q = URLEncoder.encode(b.query, "UTF-8")
             val doc = Jsoup.connect("https://www.jofogas.hu/magyarorszag?q=$q").userAgent(UA).timeout(20000).get()
-            val urls = doc.select("a[href]").map { it.absUrl("href") }
-                .filter { it.startsWith("https://www.jofogas.hu/") && idRe.containsMatchIn(it.substringBefore('?')) }
-                .distinctBy { idRe.find(it.substringBefore('?'))!!.groupValues[1] }.take(30)
-            val words = norm(b.query).split(" ")
+                     val words = norm(b.query).split(" ")
+            val urls = doc.select("a[href]")
+                .filter { a ->
+                    val u = a.absUrl("href").substringBefore('?')
+                    u.startsWith("https://www.jofogas.hu/") && idRe.containsMatchIn(u) &&
+                        words.all { norm(a.text()).contains(it) }
+                }
+                .map { it.absUrl("href") }
+                .distinctBy { idRe.find(it.substringBefore('?'))!!.groupValues[1] }.take(10)
             for (u in urls) {
                 val id = idRe.find(u.substringBefore('?'))!!.groupValues[1]
                 if (id in seen) continue
